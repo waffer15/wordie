@@ -7,6 +7,9 @@
     <div v-if="tab === 'play'" class="play-tab">
       <p class="instructions"> Choose a Game </p>
       <div class="action-container">
+          <button class="button" @click="clickButton('day')">
+            Daily Wordie
+          </button>
           <button class="button normal" @click="clickButton('normal')">
             5 Letters
           </button>
@@ -59,16 +62,25 @@ export default {
   },
   methods: {
     clickButton(type) {
-      const letters = type === 'normal' ? 5 : 6;
-     
-      const word = new Words().randomWord(letters);
+      const wordie = new Words();
+      let word;
+      let route;
+      if (type === 'day') {
+        word = wordie.wordOfTheDay();
+        route = '/game/daily/';
+      } else {
+        const letters = type === 'normal' ? 5 : 6;
+        word = wordie.randomWord(letters);
+        route = '/game/';
+      }
+      
       const encodedWord = window.btoa(word);
-      this.$router.push(`/game/${encodedWord}`);
+      this.$router.push(`${route}${encodedWord}`);
     },
     generateWordie() {
       if (!this.disableGenerateButton) {
         const encodedWord = window.btoa(this.customWord);
-        this.gameLink = `${BASE_URL}/game/${encodedWord}`;
+        this.gameLink = `${BASE_URL}/game/custom/${encodedWord}`;
         this.$nextTick(() => {
           const input = document.getElementById('game-link');
           input.focus();

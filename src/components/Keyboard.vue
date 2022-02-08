@@ -16,7 +16,7 @@ export default {
     input: {
       type: String,
     },
-    updateButtonClasses: { type: Object, default: null },
+    buttonClasses: { type: Object, default: null },
   },
   data: () => ({
     keyboard: null,
@@ -51,8 +51,13 @@ export default {
             '{bksp}': ' ',
             '{enter}': 'Enter',
         },
+        stopMouseDownPropagation: true,
+        stopMouseUpPropagation: true,
+        preventMouseDownDefault: true,
+        preventMouseUpDefault: true,
       });
       this.keyboard = keyboard;
+      this.updateButtonClasses();
   },
   methods: {
     onChange(input) {
@@ -61,24 +66,29 @@ export default {
     onKeyPress(button) {
         this.$emit("onKeyPress", button);
     },
+    updateButtonClasses() {
+      if (!this.buttonClasses) {
+        return;
+      }
+      for (let buttonClass of Object.keys(this.buttonClasses))  {
+        if (this.buttonClasses[buttonClass]?.length) {
+          this.keyboard.removeButtonTheme(this.buttonClasses[buttonClass], 'green orange dark-grey');
+          this.keyboard.addButtonTheme(this.buttonClasses[buttonClass], buttonClass);
+        }
+      }
+    }
   },
   watch: {
     input(input) {
       this.keyboard.setInput(input);
     },
-    updateButtonClasses: {
+    buttonClasses: {
       deep: true,
       handler(to) {
         if (!to) {
           return;
         }
-
-        for (let buttonClass of Object.keys(to))  {
-          if (to[buttonClass]?.length) {
-            this.keyboard.removeButtonTheme(to[buttonClass], 'green orange dark-grey');
-            this.keyboard.addButtonTheme(to[buttonClass], buttonClass);
-          }
-        }
+        this.updateButtonClasses();
       },
     },
   },
@@ -91,8 +101,7 @@ export default {
     background-color: #353535;
     color: white;
     user-select: none;
-    touch-action: manipulation;
-    -ms-touch-action: manipulation;
+    touch-action: none;
 }
 
 :deep(.green) {
@@ -108,13 +117,11 @@ export default {
 }
 
 :deep(.hg-row) {
-  touch-action: manipulation;
-  -ms-touch-action: manipulation;
+  touch-action: none;
 }
 
 :deep(.hg-rows) {
-  touch-action: manipulation;
-  -ms-touch-action: manipulation;
+  touch-action: none;
 }
 
 .custom-theme {
@@ -123,7 +130,7 @@ export default {
     bottom: 0;
     background-color: #1e1e1e;
     margin-bottom: 0.5rem;
-    touch-action: manipulation;
+    touch-action: none;
     max-width: 35rem;
 }
 

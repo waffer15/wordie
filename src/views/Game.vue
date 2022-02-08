@@ -1,14 +1,14 @@
 <template>
   <div class="game-container">
     <transition name="fade">
-      <Popup v-if="showPopup" :items="popupItems" :answer="word" :allItems="items"/>
+      <Popup v-if="showPopup" :items="popupItems" :answer="word" :allItems="items" :attempts="attempts"/>
     </transition>
     <div class="word-grid">
         <Grid v-if="ready" :items="items" :width="word.length" />
     </div>
-    <div class="invalid-word-message" :class="{ 'fade-animation': invalidWord }"> Invalid Word </div>
+    <div class="invalid-word-message" :class="{ 'fade-animation': invalidWord }"> Not in word bank </div>
     <div class="keyboard-container">
-      <Keyboard class="keyboard" @onKeyPress="handleKeyPress" :updateButtonClasses="buttonClasses"/>
+      <Keyboard class="keyboard" @onKeyPress="handleKeyPress" :buttonClasses="buttonClasses"/>
     </div>
   </div>
 </template>
@@ -47,8 +47,17 @@ export default {
   methods: {
     initGame() {
       const numLetters = this.word.length;
-      this.items = Array.from({length: numLetters * this.attempts }, () => { return { color: 'grey', content: '' }});
+      const saveObject = this.getSaveProgress();
+      if (saveObject) {
+        this.items = saveObject.items;
+        this.currentAttempt = saveObject.currentAttempt;
+        this.buttonClasses = saveObject.buttonClasses;
+      } else {
+        this.items = Array.from({length: numLetters * this.attempts }, () => { return { color: 'grey', content: '' }});
+      }
       this.ready = true;
+      
+      this.checkGuess();
     },
     handleKeyPress(button) {
       const index = this.currentAttempt * this.word.length + this.currentPosition;
@@ -89,8 +98,8 @@ export default {
       const end = start + this.word.length;
 
       const guess = this.items.slice(start, end).map(item => item.content.toLowerCase()).join('');
-      console.log(guess);
-      if (!Word.isValidWord(guess)) {
+
+      if (!this.$route.fullPath.includes('custom') && !Word.isValidWord(guess)) {
         this.invalidWord = true;
         setTimeout(() => {
           this.invalidWord = false;
@@ -138,46 +147,78 @@ export default {
           this.items[i].color = 'orange';
         }
       }
+
+      this.setButtonColors(this.items.slice(start, end));
+      this.currentAttempt += 1;
+      this.currentPosition = 0;
+
+      this.checkGuess();
+      this.saveProgress();
+    },
+    setButtonColors(guessArray) {
+      let { green, orange, 'dark-grey': grey } = this.buttonClasses;
       
+      let curContent;
+
+      for (let item of guessArray) {
+        curContent = item.content.toUpperCase();
+
+        if (item.color === 'green'  && (!green || green?.indexOf(curContent) < 0)) {
+          green = green?.length ? `${green} ${curContent}` : curContent;
+          // replace existing entries
+          orange = orange?.length ? orange.replace(curContent) : orange;
+          grey = grey?.length ? grey.replace(curContent) : grey;
+        } else if (item.color === 'orange' && (!orange || orange?.indexOf(curContent) < 0)) {
+          if (green?.indexOf(curContent) > -1) continue;
+
+          orange = orange?.length ? `${orange} ${curContent}` : curContent;
+          grey = grey?.length ? grey.replace(curContent) : grey;
+        } else if (item.color === 'dark-grey' && (!grey || grey?.indexOf(curContent) < 0)) {
+          if (green?.indexOf(curContent) > -1 || orange?.indexOf(curContent) > -1) continue;
+
+          grey = grey?.length ? `${grey} ${curContent}` : curContent;
+        }
+      }
+      this.buttonClasses = { green, orange, 'dark-grey': grey };
+    },
+    saveProgress() {
+      const saveObject = {};
+      saveObject.currentAttempt = this.currentAttempt;
+      saveObject.items = this.items;
+      saveObject.buttonClasses = this.buttonClasses;
+
+      localStorage.setItem(this.word, JSON.stringify(saveObject));
+    },
+    getSaveProgress() {
+      const storedSave = localStorage.getItem(this.word);
+
+      if (!storedSave) {
+        return null;
+      }
+
+      const saveObject = JSON.parse(storedSave);
+
+      if (saveObject.currentAttempt == null || !saveObject.items || !saveObject.buttonClasses) {
+        return null;
+      }
+      return saveObject;
+    },
+    checkGuess() {
+      const start = (this.currentAttempt - 1) * this.word.length;
+      const end = start + this.word.length;
+
+      const guess = this.items.slice(start, end).map(item => item.content.toLowerCase()).join('');
+
       if (guess === this.word) {
         setTimeout(() => {
           this.showPopup = true;
           this.popupItems = this.items.slice(start, end);
         }, 1000);
-      } else if (this.currentAttempt + 1 === this.attempts) {
+      } else if (this.currentAttempt >= this.attempts) {
         setTimeout(() => {
           this.showPopup = true;
         }, 1000);
       }
-      this.setButtonColors(this.items.slice(start, end));
-      this.currentAttempt += 1;
-      this.currentPosition = 0;
-    },
-    setButtonColors(guessArray) {
-      const newButtonClasses = this.buttonClasses;
-      for (let item of guessArray) {
-        let remove = false
-        if (newButtonClasses.green?.indexOf(item.content.toUpperCase()) > -1) {
-          remove = true;
-        }
-        if (newButtonClasses.orange?.indexOf(item.content.toUpperCase()) > -1) {
-          if (remove) {
-            newButtonClasses.orange.replace(item.content.toUpperCase(), '');
-          } else {
-            remove = true;
-          }
-        }
-        if (newButtonClasses['dark-grey']?.indexOf(item.content.toUpperCase()) > -1) {
-          if (remove) {
-            newButtonClasses['dark-grey'].replace(item.content.toUpperCase(), '');
-          }
-        }
-        if (newButtonClasses[item.color]?.indexOf(item.content.toUpperCase()) > -1) {
-          continue;
-        }
-        this.buttonClasses[item.color] = newButtonClasses[item.color]?.length ? newButtonClasses[item.color] + ` ${item.content.toUpperCase()}` : item.content.toUpperCase();
-      }
-      this.buttonClasses = newButtonClasses;
     },
   },
 }
@@ -211,15 +252,21 @@ export default {
 }
 
 .invalid-word-message {
-  margin-top: 1rem;
   opacity: 0;
-  font-size: 1.5rem;
-  color: #722222;
+  font-size: 1.2rem;
+  background-color: #df5a5a;
+  color: #adadad;
+  border: solid 1px #000000;
+  max-width: 60%;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0.25rem;
 }
 
 @keyframes fade {
-  0% { opacity: 1 }
-  50% { opacity: 1 }
+  0% { opacity: 0 }
+  10% { opacity: 1 }
+  90% { opacity: 1 }
   100% { opacity: 0 }
 }
 </style>

@@ -10,6 +10,8 @@ const routes = [
   },
   {
     path: '/game/:word',
+    alias: ['/game/daily/:word', '/game/custom/:word'],
+
     name: 'Game',
     // route level code-splitting
     // this generates a separate chunk (about.[hash].js) for this route

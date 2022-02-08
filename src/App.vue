@@ -18,7 +18,6 @@ html, body {
   height: 100%;
   background-color: #1c1c1c;
   overflow: hidden;
-  touch-action: none;
 }
 
 body {

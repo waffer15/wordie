@@ -12,6 +12,7 @@
 <script>
 import Grid from './Grid.vue';
 import { BASE_URL } from '../constants';
+import Word from '../utils/words';
 
 export default {
   name: 'Popup',
@@ -20,6 +21,12 @@ export default {
       items: { type: Array, default: () => [] },
       answer: { type: String, default: '' },
       allItems: { type: Array, default: () => [] },
+      attempts: { type: Number, default: 6 },
+  },
+  data() {
+      return {
+          dailyGame: this.$route.fullPath.includes('daily'),
+      };
   },
   computed: {
       shareableMessage() {
@@ -54,8 +61,16 @@ export default {
                   message += '\n';
               }
           }
-
-          const startMessage = won ? `Wordie ${count} / ${this.answer.length}` : "I couldn't guess this one";
+          
+          let startMessage;
+          if (this.dailyGame && won) {
+              startMessage = `Wordie #${Word.getWordieNumber()}   ${count} / ${this.attempts}`
+          } else if (won) {
+              startMessage = `Wordie   ${count} / ${this.attempts}`;
+          } else {
+              startMessage = `Wordie X / ${this.attempts}`
+          }
+          
           return `${startMessage} \n\n${message}`;
       },
       title() {
@@ -91,7 +106,7 @@ export default {
 .popup-container {
     position: absolute;
     height: 100%;
-    background: #242424;
+    background: rgba(32,32,32,0.95);
     z-index: 100;
     top: 0;
     color: white;
